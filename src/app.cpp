@@ -73,7 +73,7 @@ public:
     SetLabel(label);
     SetName(label);
     SetBackgroundStyle(wxBG_STYLE_PAINT);
-    SetFont(Font(10, true));
+    SetFont(Font(12, true));
     Bind(wxEVT_PAINT, [this](wxPaintEvent &) {
       wxAutoBufferedPaintDC dc(this);
       dc.SetBackground(wxBrush(Blue));
