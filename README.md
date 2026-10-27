@@ -4,6 +4,10 @@
 
 Исходная [Electron-версия](https://github.com/pepelaz1/school-monitor-desktop) сохранена отдельно. Новый интерфейс использует настоящие настольные элементы управления; синий цвет и шрифт Inter сохранены, но это не пиксельная копия HTML-интерфейса.
 
+![Нативный интерфейс macOS — меню увеличено до 12 pt](docs/native-overview.png)
+
+[Анкета](docs/native-questionnaire.png) · [Матрица](docs/native-matrix.png) · [Динамика](docs/native-history.png) · [Диалог](docs/native-dialog.png)
+
 ## Возможности
 
 - Классы, ученики (имя или код, параллель 1–4), обследования с датами.
@@ -18,7 +22,7 @@
 
 ## Windows 11 x64 — распаковать и запустить
 
-В [релизе 0.1.0](https://github.com/pepelaz1/school-monitor-native/releases/tag/v0.1.0) опубликован ZIP с `SchoolMonitor.exe`, инструкцией и текстами лицензий. Библиотеки wxWidgets, SQLite, C/C++ runtime и шрифт встраиваются в EXE. Внешние DLL, установка фреймворков и доступ в интернет для работы не нужны. Windows API использует обычные системные DLL.
+В [релизе 0.1.1](https://github.com/pepelaz1/school-monitor-native/releases/tag/v0.1.1) опубликован ZIP с `SchoolMonitor.exe`, инструкцией и текстами лицензий. Библиотеки wxWidgets, SQLite, C/C++ runtime и шрифт встраиваются в EXE. Внешние DLL, установка фреймворков и доступ в интернет для работы не нужны. Windows API использует обычные системные DLL.
 
 При запуске приложение создаёт локальный каталог данных пользователя и извлекает туда шрифт для регистрации в текущем процессе. Демобаза хранится там же. Рабочую базу можно создать в выбранной папке. Поэтому один EXE — способ распространения, а не хранение всех пользовательских данных внутри исполняемого файла.
 
@@ -31,7 +35,7 @@
 | ZIP | около 164 МиБ | **5,29 МиБ** |
 | EXE | около 238 МиБ | **13,38 МиБ** |
 
-Нативный Windows-архив примерно в 31 раз меньше. ZIP содержит один EXE, инструкцию и лицензии. Проверена целостность ZIP и отсутствие внешних DLL. [Скачать Windows ZIP](https://github.com/pepelaz1/school-monitor-native/releases/download/v0.1.0/SchoolMonitor-Native-0.1.0-win11-x64.zip).
+Нативный Windows-архив примерно в 31 раз меньше. ZIP содержит один EXE, инструкцию и лицензии. Проверена целостность ZIP и отсутствие внешних DLL. [Скачать Windows ZIP](https://github.com/pepelaz1/school-monitor-native/releases/download/v0.1.1/SchoolMonitor-Native-0.1.1-win11-x64.zip).
 
 Также собрана macOS Apple Silicon версия (ZIP около 3 МиБ). Опубликованная Mac-сборка требует **macOS 26+**, поскольку собрана текущим SDK с этим deployment target. Для более старой macOS потребуется отдельная сборка с подходящим `CMAKE_OSX_DEPLOYMENT_TARGET`. Упаковка Mac: `scripts/package-mac.sh`.
 
