@@ -8,6 +8,6 @@ Windows: распакуйте ZIP, запустите `SchoolMonitor.exe`. wxWid
 
 Автоматические проверки расчётов, валидации, сохранения и резервного копирования, PDF и CSV. Windows CI дополнительно запускает настоящее GUI-приложение и проверяет состав зависимостей EXE. CI использует Windows Server; отдельная проверка на Windows 11 остаётся необходимой. Authenticode и Apple Developer ID/нотариализация не настроены.
 
-Размер Windows ZIP: **5,29 МиБ**, EXE: **13,38 МиБ** — архив примерно в 31 раз меньше Electron-варианта 0.2. [Успешный Windows CI](https://github.com/pepelaz1/school-monitor-native/actions/runs/40461114556).
+Размер Windows ZIP: **5,29 МиБ**, EXE: **13,38 МиБ** — архив примерно в 31 раз меньше Electron-варианта 0.2. [Успешный Windows CI](https://github.com/pepelaz1/school-monitor-native/actions/runs/40465116652).
 
 Mac-сборка: Apple Silicon, **macOS 26+**, ZIP около 3 МиБ. Автоматический запуск и экспорты проверены локально; ручной осмотр окна, анкеты, диалогов, матрицы и динамики выполнен.

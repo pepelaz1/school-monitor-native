@@ -26,6 +26,6 @@ GitHub Actions использует Windows Server. Нативного поль�
 
 ## Финальная Windows-сборка
 
-[GitHub Actions 40461114556](https://github.com/pepelaz1/school-monitor-native/actions/runs/40461114556) прошёл все этапы: компиляция Release, актуальные тесты ядра, нативный GUI smoke-тест, проверка DLL и упаковка. EXE: 14 028 288 байт, ZIP: 5 543 121 байт. ZIP CRC проверена, внешних DLL в архиве нет. В зависимостях EXE только системные компоненты Windows.
+[GitHub Actions 40465116652](https://github.com/pepelaz1/school-monitor-native/actions/runs/40465116652) прошёл все этапы: компиляция Release, актуальные тесты ядра, нативный GUI smoke-тест, проверка DLL и упаковка. EXE: 14 030 336 байт, ZIP: 5 543 980 байт. ZIP CRC проверена, внешних DLL в архиве нет. В зависимостях EXE только системные компоненты Windows.
 
 Финальная Mac-сборка имеет deployment target macOS 26.0 (Apple Silicon); старые macOS этим бинарным файлом не проверялись и не поддерживаются.
