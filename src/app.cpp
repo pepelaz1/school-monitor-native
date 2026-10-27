@@ -356,6 +356,10 @@ void EditAnswer(wxWindow *parent, Store &db, const Student &pupil, const std::st
   auto area = wxGetClientDisplayRect();
   d.SetSize(std::min(850, area.width - 40), std::min(740, area.height - 50));
   d.CentreOnParent();
+  d.CallAfter([scroll, first = mood.front()] {
+    first->SetFocus();
+    scroll->Scroll(0, 0);
+  });
   d.ShowModal();
 }
 class MainFrame : public wxFrame {
@@ -670,6 +674,7 @@ class MainFrame : public wxFrame {
                            a.n ? wxString::Format("%.2f · n=%d", a.mean(), a.n) : "—");
       }
     }
+    grid->SetMinSize(wxSize(0, std::min(300, static_cast<int>(state_.waves.size() + 1) * 31 + 24)));
     s->Add(grid, 0, wxEXPAND | wxBOTTOM, 20);
     for (auto &wave : state_.waves) {
       Text(p, s, U(wave.title + " · " + wave.date), 12, true);
