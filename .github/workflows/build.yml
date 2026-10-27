@@ -2,10 +2,9 @@ name: Native builds and tests
 on:
   push:
     branches: [main]
-    tags: ['v*']
   workflow_dispatch:
 permissions:
-  contents: write
+  contents: read
 jobs:
   windows:
     runs-on: windows-latest
@@ -18,7 +17,7 @@ jobs:
       - name: Configure static Release
         run: cmake -S . -B build -A x64 -DCMAKE_BUILD_TYPE=Release
       - name: Build
-        run: cmake --build build --config Release --parallel 4
+        run: cmake --build build --config Release --target SchoolMonitor monitor_tests --parallel 4
       - name: Core tests
         run: ctest --test-dir build -C Release --output-on-failure
       - name: Native GUI smoke test
@@ -46,6 +45,7 @@ jobs:
           Copy-Item build/Release/SchoolMonitor.exe package/SchoolMonitor-Native/
           Copy-Item docs/WINDOWS-RUN.txt package/SchoolMonitor-Native/READ-ME-RU.txt
           Copy-Item -Recurse licenses package/SchoolMonitor-Native/
+          Copy-Item LICENSE package/SchoolMonitor-Native/licenses/SchoolMonitor-MIT.txt
           $pdb = Get-Item build/Release/SchoolMonitor.exe
           "Windows EXE size: $($pdb.Length) bytes"
           Compress-Archive -Path package/SchoolMonitor-Native -DestinationPath SchoolMonitor-Native-0.1.0-win11-x64.zip
@@ -59,12 +59,3 @@ jobs:
         with:
           name: windows-smoke-results
           path: ${{ runner.temp }}/monitor-smoke
-      - name: Publish tagged release
-        if: startsWith(github.ref, 'refs/tags/')
-        shell: pwsh
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          gh release view $env:GITHUB_REF_NAME --repo $env:GITHUB_REPOSITORY 2>$null
-          if ($LASTEXITCODE -ne 0) { gh release create $env:GITHUB_REF_NAME --repo $env:GITHUB_REPOSITORY --title 'SchoolMonitor Native 0.1.0' --notes-file docs/RELEASE.md }
-          gh release upload $env:GITHUB_REF_NAME SchoolMonitor-Native-0.1.0-win11-x64.zip --repo $env:GITHUB_REPOSITORY --clobber

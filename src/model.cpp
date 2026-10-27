@@ -102,8 +102,8 @@ Json validate(const Json &p, const Student &student, const std::vector<Student> 
     }
   for (auto &x : scales)
     if (ladder.contains(x) && !ladder[x].is_null() && ladder[x] != "") {
-      if (!ladder[x].is_number_integer() || ladder[x].get<int>() < 1 ||
-          ladder[x].get<int>() > steps)
+      if (!ladder[x].is_number_integer() || ladder[x].get<double>() < 1 ||
+          ladder[x].get<double>() > steps)
         throw std::runtime_error("Ступень вне диапазона");
       result["ladder"][x] = ladder[x];
     }
@@ -252,6 +252,12 @@ Store::Store(const std::filesystem::path &p, bool create) : path_(std::filesyste
     throw std::runtime_error(e);
   }
   try {
+    if (!create) {
+      auto tables = query("SELECT name FROM sqlite_master WHERE type='table' AND name IN "
+                          "('meta','students','waves','answers')");
+      if (tables.size() != 4)
+        throw std::runtime_error("Файл не является совместимой базой школьного мониторинга");
+    }
     sqlite3_busy_timeout(db_, 3000);
     exec("PRAGMA foreign_keys=ON; PRAGMA synchronous=FULL; CREATE TABLE IF NOT EXISTS meta(key "
          "TEXT PRIMARY KEY,value TEXT NOT NULL); CREATE TABLE IF NOT EXISTS students(id TEXT "

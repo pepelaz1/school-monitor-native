@@ -1,4 +1,5 @@
 #include "model.hpp"
+#include <algorithm>
 #include <fstream>
 #include <iostream>
 #include <stdexcept>
@@ -16,7 +17,27 @@ template <class F> void rejects(F f) {
   }
   check(threw, "expected rejection");
 }
-int main() {
+int main(int argc, char **argv) {
+  if (argc == 3 && std::string(argv[1]) == "--verify-db") {
+    try {
+      Store imported(std::filesystem::u8path(argv[2]), false);
+      auto snapshot = imported.snapshot();
+      for (auto &a : snapshot.answers) {
+        auto it = std::find_if(snapshot.students.begin(), snapshot.students.end(),
+                               [&](auto &p) { return p.id == a.student; });
+        if (it == snapshot.students.end())
+          throw std::runtime_error("orphan student");
+        validate(a.payload, *it, classmates(snapshot, it->group), snapshot.steps);
+      }
+      std::cout << "Compatible SQLite: " << snapshot.students.size() << " students, "
+                << snapshot.waves.size() << " waves, " << snapshot.answers.size() << " answers\n";
+      return 0;
+    } catch (const std::exception &e) {
+      std::cerr << e.what() << "\n";
+      return 1;
+    }
+  }
+
   auto dir =
       std::filesystem::temp_directory_path() / std::filesystem::u8path("monitor-test-" + uid());
   std::filesystem::create_directories(dir);
@@ -42,6 +63,23 @@ int main() {
     rejects([&] { validate(bad, student, peers, 5); });
     rejects([&] { validate(Json{{"ladder", {{scales[0], 6}}}}, student, peers, 5); });
     rejects([&] { validate(Json{{"note", std::string(2001, 'a')}}, student, peers, 5); });
+    rejects([&] { validate(Json{{"ladder", {{scales[0], 4294967297LL}}}}, student, peers, 5); });
+    {
+      auto other = dir / "unrelated.sqlite";
+      sqlite3 *raw = nullptr;
+      check(sqlite3_open(other.u8string().c_str(), &raw) == SQLITE_OK, "fixture db");
+      sqlite3_exec(raw, "CREATE TABLE unrelated(value TEXT)", nullptr, nullptr, nullptr);
+      sqlite3_close(raw);
+      rejects([&] { Store wrong(other, false); });
+      sqlite3_open(other.u8string().c_str(), &raw);
+      sqlite3_stmt *stmt = nullptr;
+      sqlite3_prepare_v2(raw, "SELECT count(*) FROM sqlite_master WHERE name='students'", -1, &stmt,
+                         nullptr);
+      check(sqlite3_step(stmt) == SQLITE_ROW && sqlite3_column_int(stmt, 0) == 0,
+            "unrelated DB not changed");
+      sqlite3_finalize(stmt);
+      sqlite3_close(raw);
+    }
     Snapshot two;
     two.students = {{"a", "А", "2Т", 2}, {"b", "Б", "2Т", 2}};
     two.answers = {{"w", "a", {{"choices", {{"Поход+", {"b"}}}}}},
