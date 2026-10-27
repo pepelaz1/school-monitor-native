@@ -22,6 +22,13 @@ using namespace monitor;
 namespace {
 const wxColour Blue("#005bff"), Ink("#001a34"), Muted("#708398"), Paper("#f2f5f9"), Line("#e2e8f0"),
     Pink("#f1117e");
+// GDI+ loads private variable fonts through a separate font collection on Windows.
+// Use the native GDI text path there, as in the original stable wxWidgets build.
+#ifdef __WXMSW__
+using SurfaceDC = wxDC &;
+#else
+using SurfaceDC = wxGCDC;
+#endif
 wxString U(const std::string &s) {
   return wxString::FromUTF8(s.data(), s.size());
 }
@@ -50,6 +57,8 @@ wxStaticText *Label(wxWindow *parent, const wxString &text, int size = 10, bool 
 class StyledButton : public wxBitmapButton {
   wxString text_;
   bool primary_;
+  bool updating_ = false;
+  wxSize rendered_;
   wxBitmap Surface(wxSize size, bool hover = false, bool pressed = false, bool focus = false,
                    bool disabled = false) {
     wxBitmap bitmap;
@@ -59,7 +68,7 @@ class StyledButton : public wxBitmapButton {
     memory.SetBackground(wxBrush(background.IsOk() ? background : *wxWHITE));
     memory.Clear();
     {
-      wxGCDC dc(memory);
+      SurfaceDC dc(memory);
       wxRect r(2, 2, size.x - 4, size.y - 5);
       wxColour fill = primary_ ? Blue : *wxWHITE;
       if (hover)
@@ -91,13 +100,16 @@ class StyledButton : public wxBitmapButton {
   }
   void UpdateSurfaces() {
     auto size = GetClientSize();
-    if (size.x < 8 || size.y < 8)
+    if (updating_ || size == rendered_ || size.x < 8 || size.y < 8)
       return;
+    updating_ = true;
+    rendered_ = size;
     SetBitmap(Surface(size));
     SetBitmapCurrent(Surface(size, true));
     SetBitmapPressed(Surface(size, false, true));
     SetBitmapFocus(Surface(size, false, false, true));
     SetBitmapDisabled(Surface(size, false, false, false, true));
+    updating_ = false;
   }
 
 public:
@@ -143,7 +155,7 @@ public:
     SetBackgroundStyle(wxBG_STYLE_PAINT);
     Bind(wxEVT_PAINT, [this](wxPaintEvent &) {
       wxAutoBufferedPaintDC buffer(this);
-      wxGCDC dc(buffer);
+      SurfaceDC dc(buffer);
       DrawSurface(dc, GetClientSize());
     });
   }
@@ -235,7 +247,7 @@ public:
   }
   void Paint(wxPaintEvent &) {
     wxAutoBufferedPaintDC buffer(this);
-    wxGCDC dc(buffer);
+    SurfaceDC dc(buffer);
     DrawSurface(dc, GetClientSize());
     int w = GetClientSize().x;
     dc.SetTextForeground(Ink);
