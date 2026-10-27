@@ -1,0 +1,7 @@
+#include "model.hpp"
+namespace monitor {
+const std::vector<unsigned char>& fontBytes(){
+ static const std::vector<unsigned char> bytes={@FONT_BYTES@};
+ return bytes;
+}
+}

@@ -1,0 +1,9 @@
+/build*/
+/package/
+/dist/
+*.sqlite
+*.sqlite-*
+*.pdf
+*.csv
+*.pdb
+.DS_Store

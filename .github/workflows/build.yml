@@ -1,0 +1,70 @@
+name: Native builds and tests
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/cache@v4
+        with:
+          path: build/_deps
+          key: wx334-msvc-static-${{ hashFiles('CMakeLists.txt') }}
+      - name: Configure static Release
+        run: cmake -S . -B build -A x64 -DCMAKE_BUILD_TYPE=Release
+      - name: Build
+        run: cmake --build build --config Release --parallel 4
+      - name: Core tests
+        run: ctest --test-dir build -C Release --output-on-failure
+      - name: Native GUI smoke test
+        shell: pwsh
+        run: |
+          $dir = Join-Path $env:RUNNER_TEMP 'monitor-smoke'
+          New-Item -ItemType Directory -Force $dir | Out-Null
+          $exe = (Resolve-Path 'build/Release/SchoolMonitor.exe').Path
+          $p = Start-Process -FilePath $exe -ArgumentList @('--smoke-test', $dir) -PassThru
+          if (-not $p.WaitForExit(45000)) { Stop-Process -Id $p.Id; throw 'Native GUI timeout' }
+          if ($p.ExitCode -ne 0) { throw "GUI process exit $($p.ExitCode)" }
+          if (Test-Path "$dir/smoke-error.txt") { Get-Content "$dir/smoke-error.txt"; throw 'GUI smoke failed' }
+          if (-not (Test-Path "$dir/smoke-ok.txt")) { throw 'Smoke marker missing' }
+          Get-Content "$dir/smoke-ok.txt"
+          $vs = & "${env:ProgramFiles(x86)}/Microsoft Visual Studio/Installer/vswhere.exe" -latest -property installationPath
+          $dumpbin = Get-ChildItem "$vs/VC/Tools/MSVC/*/bin/Hostx64/x64/dumpbin.exe" | Sort-Object FullName -Descending | Select-Object -First 1
+          $deps = & $dumpbin.FullName /dependents $exe
+          $deps | Out-File "$dir/dependencies.txt"
+          $deps
+          if ($deps -match '(?i)(wx.*\.dll|sqlite3\.dll|MSVCP\d+\.dll|VCRUNTIME\d+\.dll)') { throw 'Unexpected non-system runtime dependency' }
+      - name: Portable ZIP
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force package/SchoolMonitor-Native | Out-Null
+          Copy-Item build/Release/SchoolMonitor.exe package/SchoolMonitor-Native/
+          Copy-Item docs/WINDOWS-RUN.txt package/SchoolMonitor-Native/READ-ME-RU.txt
+          Copy-Item -Recurse licenses package/SchoolMonitor-Native/
+          $pdb = Get-Item build/Release/SchoolMonitor.exe
+          "Windows EXE size: $($pdb.Length) bytes"
+          Compress-Archive -Path package/SchoolMonitor-Native -DestinationPath SchoolMonitor-Native-0.1.0-win11-x64.zip
+          Get-FileHash SchoolMonitor-Native-0.1.0-win11-x64.zip -Algorithm SHA256 | Format-List
+      - uses: actions/upload-artifact@v4
+        with:
+          name: windows-portable
+          path: SchoolMonitor-Native-0.1.0-win11-x64.zip
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: windows-smoke-results
+          path: ${{ runner.temp }}/monitor-smoke
+      - name: Publish tagged release
+        if: startsWith(github.ref, 'refs/tags/')
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release view $env:GITHUB_REF_NAME --repo $env:GITHUB_REPOSITORY 2>$null
+          if ($LASTEXITCODE -ne 0) { gh release create $env:GITHUB_REF_NAME --repo $env:GITHUB_REPOSITORY --title 'SchoolMonitor Native 0.1.0' --notes-file docs/RELEASE.md }
+          gh release upload $env:GITHUB_REF_NAME SchoolMonitor-Native-0.1.0-win11-x64.zip --repo $env:GITHUB_REPOSITORY --clobber
