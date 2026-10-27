@@ -4,9 +4,11 @@
 #include <functional>
 #include <memory>
 #include <stdexcept>
+#include <wx/bmpbuttn.h>
 #include <wx/datectrl.h>
 #include <wx/dateevt.h>
 #include <wx/dcbuffer.h>
+#include <wx/dcgraph.h>
 #include <wx/fileconf.h>
 #include <wx/grid.h>
 #include <wx/listctrl.h>
@@ -43,27 +45,123 @@ wxStaticText *Label(wxWindow *parent, const wxString &text, int size = 10, bool 
   p->SetFont(Font(size, bold));
   return p;
 }
-wxButton *Button(wxWindow *parent, const wxString &text, bool primary = false, int id = wxID_ANY) {
-  auto b = new wxButton(parent, id, text);
-  b->SetFont(Font(10, true));
-  b->SetMinSize(wxSize(-1, 38));
-  b->SetForegroundColour(primary ? *wxWHITE : Blue);
-  if (primary) {
-#ifdef __WXOSX__
-    b->SetBackgroundColour(wxColour("#e5efff"));
-    b->SetForegroundColour(Ink);
-#else
-    b->SetBackgroundColour(Blue);
-#endif
+// Bitmap states keep native button keyboard, dialog and accessibility semantics,
+// while drawing the same Inter typography and surfaces on macOS and Windows.
+class StyledButton : public wxBitmapButton {
+  wxString text_;
+  bool primary_;
+  wxBitmap Surface(wxSize size, bool hover = false, bool pressed = false, bool focus = false,
+                   bool disabled = false) {
+    wxBitmap bitmap;
+    bitmap.CreateWithLogicalSize(size, GetDPIScaleFactor());
+    wxMemoryDC memory(bitmap);
+    auto background = GetParent()->GetBackgroundColour();
+    memory.SetBackground(wxBrush(background.IsOk() ? background : *wxWHITE));
+    memory.Clear();
+    {
+      wxGCDC dc(memory);
+      wxRect r(2, 2, size.x - 4, size.y - 5);
+      wxColour fill = primary_ ? Blue : *wxWHITE;
+      if (hover)
+        fill = primary_ ? wxColour("#1468ff") : wxColour("#f2f7ff");
+      if (pressed) {
+        fill = primary_ ? wxColour("#004bd6") : wxColour("#e5efff");
+        r.Offset(0, 1);
+      }
+      if (disabled)
+        fill = wxColour("#e2e8f0");
+      dc.SetPen(*wxTRANSPARENT_PEN);
+      dc.SetBrush(wxBrush(wxColour("#dce5f2")));
+      dc.DrawRoundedRectangle(2, 4, size.x - 4, size.y - 5, 7);
+      if (focus) {
+        dc.SetPen(wxPen(wxColour("#99bdff"), 2));
+        dc.SetBrush(*wxTRANSPARENT_BRUSH);
+        dc.DrawRoundedRectangle(1, 1, size.x - 2, size.y - 2, 8);
+      }
+      dc.SetPen(wxPen(primary_ ? fill : Line));
+      dc.SetBrush(wxBrush(fill));
+      dc.DrawRoundedRectangle(r, 7);
+      dc.SetFont(Font(10, true));
+      dc.SetTextForeground(disabled ? Muted : (primary_ ? *wxWHITE : Ink));
+      auto z = dc.GetTextExtent(text_);
+      dc.DrawText(text_, (size.x - z.x) / 2, (size.y - z.y) / 2 + (pressed ? 1 : 0));
+    }
+    memory.SelectObject(wxNullBitmap);
+    return bitmap;
   }
-  b->SetLabel(text);
-  return b;
+  void UpdateSurfaces() {
+    auto size = GetClientSize();
+    if (size.x < 8 || size.y < 8)
+      return;
+    SetBitmap(Surface(size));
+    SetBitmapCurrent(Surface(size, true));
+    SetBitmapPressed(Surface(size, false, true));
+    SetBitmapFocus(Surface(size, false, false, true));
+    SetBitmapDisabled(Surface(size, false, false, false, true));
+  }
+
+public:
+  StyledButton(wxWindow *parent, const wxString &text, bool primary, int id)
+      : wxBitmapButton(parent, id, wxNullBitmap, wxDefaultPosition, wxDefaultSize, wxBORDER_NONE),
+        text_(text), primary_(primary) {
+    SetName(text);
+    SetLabel(text);
+    SetFont(Font(10, true));
+    SetCursor(wxCursor(wxCURSOR_HAND));
+    wxClientDC dc(this);
+    dc.SetFont(GetFont());
+    auto z = dc.GetTextExtent(text);
+    auto size = wxSize(z.x + 36, 42);
+    SetBitmapMargins(0, 0);
+    SetMinSize(size);
+    SetSize(size);
+    UpdateSurfaces();
+    Bind(wxEVT_SIZE, [this](wxSizeEvent &e) {
+      UpdateSurfaces();
+      e.Skip();
+    });
+  }
+};
+StyledButton *Button(wxWindow *parent, const wxString &text, bool primary = false,
+                     int id = wxID_ANY) {
+  return new StyledButton(parent, text, primary, id);
+}
+void DrawSurface(wxDC &dc, wxSize size) {
+  dc.SetBackground(wxBrush(Paper));
+  dc.Clear();
+  dc.SetPen(*wxTRANSPARENT_PEN);
+  dc.SetBrush(wxBrush(wxColour("#e8edf5")));
+  dc.DrawRoundedRectangle(1, 3, size.x - 2, size.y - 3, 10);
+  dc.SetPen(wxPen(Line));
+  dc.SetBrush(*wxWHITE_BRUSH);
+  dc.DrawRoundedRectangle(0, 0, size.x - 1, size.y - 4, 10);
+}
+class Card : public wxPanel {
+public:
+  explicit Card(wxWindow *p) : wxPanel(p) {
+    SetBackgroundColour(*wxWHITE);
+    SetBackgroundStyle(wxBG_STYLE_PAINT);
+    Bind(wxEVT_PAINT, [this](wxPaintEvent &) {
+      wxAutoBufferedPaintDC buffer(this);
+      wxGCDC dc(buffer);
+      DrawSurface(dc, GetClientSize());
+    });
+  }
+};
+wxSizer *DialogButtons(wxDialog *d) {
+  auto row = new wxBoxSizer(wxHORIZONTAL);
+  auto cancel = Button(d, "Отмена", false, wxID_CANCEL);
+  auto save = Button(d, "Сохранить", true, wxID_OK);
+  row->Add(cancel, 0, wxRIGHT, 12);
+  row->AddStretchSpacer();
+  row->Add(save);
+  return row;
 }
 void Error(wxWindow *parent, const std::exception &e) {
   wxMessageBox(U(e.what()), "Проверьте данные", wxOK | wxICON_WARNING, parent);
 }
 class Nav : public wxControl {
-  bool active_ = false;
+  bool active_ = false, hover_ = false;
   std::function<void()> action_;
 
 public:
@@ -74,13 +172,24 @@ public:
     SetName(label);
     SetBackgroundStyle(wxBG_STYLE_PAINT);
     SetFont(Font(12, true));
+    SetCursor(wxCursor(wxCURSOR_HAND));
+    Bind(wxEVT_ENTER_WINDOW, [this](wxMouseEvent &e) {
+      hover_ = true;
+      Refresh();
+      e.Skip();
+    });
+    Bind(wxEVT_LEAVE_WINDOW, [this](wxMouseEvent &e) {
+      hover_ = false;
+      Refresh();
+      e.Skip();
+    });
     Bind(wxEVT_PAINT, [this](wxPaintEvent &) {
       wxAutoBufferedPaintDC dc(this);
       dc.SetBackground(wxBrush(Blue));
       dc.Clear();
-      if (active_ || HasFocus()) {
+      if (active_ || hover_ || HasFocus()) {
         dc.SetPen(*wxTRANSPARENT_PEN);
-        dc.SetBrush(wxBrush(wxColour("#337cff")));
+        dc.SetBrush(wxBrush(wxColour(active_ ? "#2673ff" : "#1a6bff")));
         dc.DrawRoundedRectangle(GetClientRect(), 8);
       }
       dc.SetTextForeground(*wxWHITE);
@@ -125,9 +234,9 @@ public:
     Bind(wxEVT_PAINT, &Chart::Paint, this);
   }
   void Paint(wxPaintEvent &) {
-    wxAutoBufferedPaintDC dc(this);
-    dc.SetBackground(*wxWHITE_BRUSH);
-    dc.Clear();
+    wxAutoBufferedPaintDC buffer(this);
+    wxGCDC dc(buffer);
+    DrawSurface(dc, GetClientSize());
     int w = GetClientSize().x;
     dc.SetTextForeground(Ink);
     dc.SetFont(Font(13, true));
@@ -224,6 +333,7 @@ void EditAnswer(wxWindow *parent, Store &db, const Student &pupil, const std::st
   auto peers = classmates(state, pupil.group);
   wxDialog d(parent, wxID_ANY, U(pupil.name + " · " + pupil.group), wxDefaultPosition,
              wxSize(810, 700), wxDEFAULT_DIALOG_STYLE | wxRESIZE_BORDER);
+  d.SetBackgroundColour(*wxWHITE);
   d.SetFont(Font(10));
   auto root = new wxBoxSizer(wxVERTICAL);
   auto scroll = new wxScrolledWindow(&d);
@@ -482,11 +592,13 @@ class MainFrame : public wxFrame {
         {"Сохранено анкет", wxString::Format("%d / %d", sum.answered, sum.total)},
         {"Обследований в базе", wxString::Format("%zu", state_.waves.size())}};
     for (auto &m : metrics) {
-      auto card = new wxPanel(p);
+      auto card = new Card(p);
       card->SetBackgroundColour(*wxWHITE);
       auto box = new wxBoxSizer(wxVERTICAL);
-      box->Add(Label(card, m.first, 10), 0, wxLEFT | wxRIGHT | wxTOP, 18);
-      box->Add(Label(card, m.second, 27, true), 0, wxALL, 18);
+      auto caption = Label(card, m.first, 10);
+      caption->SetForegroundColour(Muted);
+      box->Add(caption, 0, wxLEFT | wxRIGHT | wxTOP, 20);
+      box->Add(Label(card, m.second, 29, true), 0, wxALL, 18);
       card->SetSizer(box);
       cards->Add(card, 1, wxRIGHT, 12);
     }
@@ -740,6 +852,7 @@ class MainFrame : public wxFrame {
   }
   void AddStudent() {
     wxDialog d(this, wxID_ANY, "Добавить ученика");
+    d.SetBackgroundColour(*wxWHITE);
     d.SetFont(Font(10));
     auto s = new wxBoxSizer(wxVERTICAL);
     s->Add(Label(&d, "Имя или код ученика"), 0, wxBOTTOM, 7);
@@ -754,7 +867,7 @@ class MainFrame : public wxFrame {
     if (!peers.empty())
       grade->SetSelection(peers[0].grade - 1);
     s->Add(grade, 0, wxEXPAND | wxBOTTOM, 18);
-    s->Add(d.CreateSeparatedButtonSizer(wxOK | wxCANCEL), 0, wxEXPAND);
+    s->Add(DialogButtons(&d), 0, wxEXPAND);
     d.FindWindow(wxID_OK)->SetLabel("Сохранить");
     d.FindWindow(wxID_CANCEL)->SetLabel("Отмена");
     auto outer = new wxBoxSizer(wxVERTICAL);
@@ -777,6 +890,7 @@ class MainFrame : public wxFrame {
   }
   void AddWave() {
     wxDialog d(this, wxID_ANY, "Новое обследование");
+    d.SetBackgroundColour(*wxWHITE);
     d.SetFont(Font(10));
     auto s = new wxBoxSizer(wxVERTICAL);
     s->Add(Label(&d, "Название"), 0, wxBOTTOM, 7);
@@ -787,7 +901,7 @@ class MainFrame : public wxFrame {
     auto date = new wxDatePickerCtrl(&d, wxID_ANY, wxDefaultDateTime, wxDefaultPosition,
                                      wxDefaultSize, wxDP_DROPDOWN | wxDP_SHOWCENTURY);
     s->Add(date, 0, wxEXPAND | wxBOTTOM, 24);
-    s->Add(d.CreateSeparatedButtonSizer(wxOK | wxCANCEL), 0, wxEXPAND);
+    s->Add(DialogButtons(&d), 0, wxEXPAND);
     d.FindWindow(wxID_OK)->SetLabel("Сохранить");
     d.FindWindow(wxID_CANCEL)->SetLabel("Отмена");
     auto outer = new wxBoxSizer(wxVERTICAL);

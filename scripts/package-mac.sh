@@ -5,4 +5,4 @@ mkdir -p build/SchoolMonitor.app/Contents/Resources/licenses dist
 cp -R licenses/. build/SchoolMonitor.app/Contents/Resources/licenses/
 cp LICENSE build/SchoolMonitor.app/Contents/Resources/licenses/SchoolMonitor-MIT.txt
 codesign --force --deep --sign - build/SchoolMonitor.app
-ditto -c -k --sequesterRsrc --keepParent build/SchoolMonitor.app dist/SchoolMonitor-Native-0.1.1-mac-arm64.zip
+ditto -c -k --sequesterRsrc --keepParent build/SchoolMonitor.app dist/SchoolMonitor-Native-0.1.2-mac-arm64.zip
