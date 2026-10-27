@@ -756,6 +756,7 @@ class MainFrame : public wxFrame {
     outer->Add(s, 1, wxEXPAND | wxALL, 24);
     d.SetSizerAndFit(outer);
     d.SetMinSize(wxSize(420, -1));
+    d.SetSize(std::max(420, d.GetSize().x), d.GetSize().y);
     d.CentreOnParent();
     while (d.ShowModal() == wxID_OK) {
       try {
@@ -788,6 +789,7 @@ class MainFrame : public wxFrame {
     outer->Add(s, 1, wxEXPAND | wxALL, 24);
     d.SetSizerAndFit(outer);
     d.SetMinSize(wxSize(450, -1));
+    d.SetSize(std::max(450, d.GetSize().x), d.GetSize().y);
     d.CentreOnParent();
     while (d.ShowModal() == wxID_OK) {
       try {
