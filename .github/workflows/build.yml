@@ -14,6 +14,7 @@ jobs:
         with:
           path: build/_deps
           key: wx334-msvc-static-${{ hashFiles('CMakeLists.txt') }}
+          restore-keys: wx334-msvc-static-
       - name: Configure static Release
         run: cmake -S . -B build -A x64 -DCMAKE_BUILD_TYPE=Release
       - name: Build
@@ -48,12 +49,14 @@ jobs:
           Copy-Item LICENSE package/SchoolMonitor-Native/licenses/SchoolMonitor-MIT.txt
           $pdb = Get-Item build/Release/SchoolMonitor.exe
           "Windows EXE size: $($pdb.Length) bytes"
-          Compress-Archive -Path package/SchoolMonitor-Native -DestinationPath SchoolMonitor-Native-0.1.0-win11-x64.zip
-          Get-FileHash SchoolMonitor-Native-0.1.0-win11-x64.zip -Algorithm SHA256 | Format-List
+          $version = [regex]::Match((Get-Content CMakeLists.txt -Raw), 'project\(SchoolMonitorNative VERSION ([0-9.]+)').Groups[1].Value
+          $zip = "SchoolMonitor-Native-$version-win11-x64.zip"
+          Compress-Archive -Path package/SchoolMonitor-Native -DestinationPath $zip
+          Get-FileHash $zip -Algorithm SHA256 | Format-List
       - uses: actions/upload-artifact@v4
         with:
           name: windows-portable
-          path: SchoolMonitor-Native-0.1.0-win11-x64.zip
+          path: SchoolMonitor-Native-*-win11-x64.zip
       - uses: actions/upload-artifact@v4
         if: always()
         with:

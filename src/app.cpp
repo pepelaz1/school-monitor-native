@@ -48,8 +48,15 @@ wxButton *Button(wxWindow *parent, const wxString &text, bool primary = false, i
   b->SetFont(Font(10, true));
   b->SetMinSize(wxSize(-1, 38));
   b->SetForegroundColour(primary ? *wxWHITE : Blue);
-  if (primary)
+  if (primary) {
+#ifdef __WXOSX__
+    b->SetBackgroundColour(wxColour("#e5efff"));
+    b->SetForegroundColour(Ink);
+#else
     b->SetBackgroundColour(Blue);
+#endif
+  }
+  b->SetLabel(text);
   return b;
 }
 void Error(wxWindow *parent, const std::exception &e) {
@@ -743,6 +750,8 @@ class MainFrame : public wxFrame {
       grade->SetSelection(peers[0].grade - 1);
     s->Add(grade, 0, wxEXPAND | wxBOTTOM, 18);
     s->Add(d.CreateSeparatedButtonSizer(wxOK | wxCANCEL), 0, wxEXPAND);
+    d.FindWindow(wxID_OK)->SetLabel("Сохранить");
+    d.FindWindow(wxID_CANCEL)->SetLabel("Отмена");
     auto outer = new wxBoxSizer(wxVERTICAL);
     outer->Add(s, 1, wxEXPAND | wxALL, 24);
     d.SetSizerAndFit(outer);
@@ -773,6 +782,8 @@ class MainFrame : public wxFrame {
                                      wxDefaultSize, wxDP_DROPDOWN | wxDP_SHOWCENTURY);
     s->Add(date, 0, wxEXPAND | wxBOTTOM, 24);
     s->Add(d.CreateSeparatedButtonSizer(wxOK | wxCANCEL), 0, wxEXPAND);
+    d.FindWindow(wxID_OK)->SetLabel("Сохранить");
+    d.FindWindow(wxID_CANCEL)->SetLabel("Отмена");
     auto outer = new wxBoxSizer(wxVERTICAL);
     outer->Add(s, 1, wxEXPAND | wxALL, 24);
     d.SetSizerAndFit(outer);
@@ -941,6 +952,7 @@ public:
     });
     content->Add(filters, 0, wxEXPAND | wxBOTTOM, 20);
     book_ = new wxSimplebook(main);
+    book_->SetMinSize(wxSize(0, 0));
     content->Add(book_, 1, wxEXPAND);
     auto padded = new wxBoxSizer(wxVERTICAL);
     padded->Add(content, 1, wxEXPAND | wxALL, 26);
@@ -986,12 +998,17 @@ public:
           return false;
         }
       }
+#ifdef __WXOSX__
+      auto font = P(wxStandardPaths::Get().GetResourcesDir()) / "Fonts" / "Inter.ttf";
+#else
       auto font = dir / "Inter.ttf";
       if (!std::filesystem::exists(font)) {
         auto &b = fontBytes();
         writeText(font, std::string(reinterpret_cast<const char *>(b.data()), b.size()));
       }
-      wxFont::AddPrivateFont(W(font));
+#endif
+      if (!wxFont::AddPrivateFont(W(font)))
+        throw std::runtime_error("Не удалось загрузить встроенный шрифт Inter");
       wxFileConfig cfg("SchoolMonitorNative", "", W(dir / "settings.ini"), "",
                        wxCONFIG_USE_LOCAL_FILE);
       wxString last;
